@@ -20,6 +20,7 @@ def guardar(g, nombre):
 
 
 # 1. PIB trimestral
+# ------------------------------------------------------------------------------
 
 # Cargar base de datos:
 pib_trimestral = pd.read_csv('bases_de_datos/pib_trimestral.csv')
@@ -34,9 +35,6 @@ pib_trimestral['Periodo'] = pd.PeriodIndex(pib_trimestral['Periodo'], freq = 'Q'
 pib_trimestral['Fecha'] = pib_trimestral['Periodo'].dt.to_timestamp()
 
 # Gráfico del crecimiento del PIB trimestral de México y Estados Unidos, con respecto al mismo trimestre del año anterior, desde 2019 Q1 hasta 2021 Q2:
-
-
-
 g = sns.relplot(
     x = 'Fecha',
     y = 'Variación porcentual',
@@ -50,18 +48,11 @@ g = sns.relplot(
     xlabel = 'Periodo',
     ylabel = 'Crecimiento del PIB trimestral\n(mismo trimestre, %)'
 )
-
 g.ax.axhline(0, color = 'black', linewidth = '1', linestyle = 'dotted')
 g.ax.set_xticklabels(g.ax.get_xticklabels(), rotation = 90)
-
 guardar(g, 'pib_trimestral_mismo_trimestre')
 
-
 # Gráfico del crecimiento del PIB trimestral de México y Estados Unidos, con respecto al trimestre inmediatamente anterior, desde 2019 Q1 hasta 2021 Q1:
-
-# In[5]:
-
-
 g = sns.relplot(
     x = 'Fecha',
     y = 'Variación porcentual',
@@ -75,30 +66,18 @@ g = sns.relplot(
     xlabel = 'Periodo',
     ylabel = 'Crecimiento del PIB trimestral\n(trimestre anterior, %)'
 )
-
 g.ax.axhline(0, color = 'black', linewidth = '1', linestyle = 'dotted')
 g.ax.set_xticklabels(g.ax.get_xticklabels(), rotation = 90)
-
 guardar(g, 'pib_trimestral_trimestre_anterior')
 
-
 # Tabla de variación porcentual respecto al trimestre inmediatamente anterior:
-
-# In[6]:
-
-
 pib_trimestral.query("Variación == 'Trimestre inmediatamente anterior' & Fecha >= '2020-01-01'").sort_values(['País', 'Periodo'])[[
     'País',
     'Periodo',
     'Variación porcentual'
 ]].style.hide_index()
 
-
 # Tabla de variación porcentual respecto al mismo trimestre del año anterior:
-
-# In[7]:
-
-
 pib_trimestral.query("Variación == 'Mismo trimestre del año anterior' & Fecha >= '2020-01-01'").sort_values(['País', 'Periodo'])[[
     'País',
     'Periodo',
@@ -106,12 +85,8 @@ pib_trimestral.query("Variación == 'Mismo trimestre del año anterior' & Fecha 
 ]].style.hide_index()
 
 
-# ## 2. Vacunación
-
-# Para las estadísticas de vacunación contra el COVID-19 se utiliza la base de datos `vaccines.csv`:
-
-# In[8]:
-
+# 2. Vacunación
+# ------------------------------------------------------------------------------
 
 # Cargar base de datos:
 vac = pd.read_csv('bases_de_datos/vaccines.csv')
@@ -139,15 +114,9 @@ vac['Tasa de vacunación'] = vac.groupby('País')['Población vacunada'].transfo
 # Limpiar observaciones vacías:
 vac = vac.dropna()
 vac = vac.query("`Tasa de vacunación` != inf")
-
 vac = vac.set_index('Fecha')
 
-
 # Gráfico de la proporción de la población vacunada (con al menos una dosis) en México y Estados Unidos. La línea roja corresponde a la proporción de la población mundial con al menos una dosis en el periodo final de la muestra:
-
-# In[9]:
-
-
 g = sns.relplot(
     x = 'Fecha',
     y = 'Población vacunada',
@@ -161,20 +130,13 @@ g = sns.relplot(
     xlabel = 'Fecha',
     ylabel = 'Población vacunada\n(al menos una dosis, %)'
 )
-
 g.ax.set_xticklabels(g.ax.get_xticklabels(), rotation = 90)
 g.ax.axhline(max(vac.query("País == 'México'")['Población vacunada']), color = 'black', linewidth = '1', linestyle = 'dotted')
 g.ax.axhline(max(vac.query("País == 'Estados Unidos'")['Población vacunada']), color = 'black', linewidth = '1', linestyle = 'dotted')
 g.ax.axhline(max(vac.query("País == 'Mundo'")['Población vacunada']), color = 'red', linewidth = '1', linestyle = 'dotted')
-
 guardar(g, 'vacunacion')
 
-
 # Tabla comparativa de la proporción de población vacunada:
-
-# In[10]:
-
-
 vac.query("Fecha in ('2021-01-04', '2021-04-30', '2021-07-28')")[[
     'País',
     'Población vacunada'
@@ -183,30 +145,27 @@ vac.query("Fecha in ('2021-01-04', '2021-04-30', '2021-07-28')")[[
 })
 
 
-# ## 3. Inflación
+# 3. Inflación
+# ------------------------------------------------------------------------------
 
-# Para el cálculo de la inflación utilizamos la base de datos `cpi.csv` que contiene información del índice de precios al consumidor mensual:
-
-# In[11]:
-
-
+# Cargar base de datos:
 ipc = pd.read_csv('bases_de_datos/cpi.csv')
+
+# Transformar los datos de formato wide a long:
 ipc = ipc.melt(id_vars = 'País', var_name = 'Fecha', value_name = 'IPC')
+
+# Transformar la fecha y periodo en tipos correctos:
 ipc['Fecha'] = pd.to_datetime(ipc['Fecha'])
 ipc['Periodo'] = pd.PeriodIndex(ipc['Fecha'], freq = 'M')
+
+# Calcular inflación (cambio porcentual del índice de precios):
 ipc = ipc.sort_values('Fecha')
 ipc['Inflación mensual'] = ipc['IPC'].groupby(ipc['País']).transform(lambda x: (x - x.shift()) / x.shift() * 100)
 ipc['Inflación anualizada'] = ((ipc['Inflación mensual'] / 100 + 1) ** 12 - 1) * 100
-
 ipc['Factor'] = ipc['Inflación mensual'] / 100 + 1
 ipc['Inflación anual'] = (ipc['Factor'].groupby([ipc['País'], ipc['Fecha'].dt.year]).transform(np.product) - 1) * 100
 
-
 # Gráfico de la inflación mensual en México y Estados Unidos:
-
-# In[12]:
-
-
 g = sns.relplot(
     x = 'Fecha',
     y = 'Inflación mensual',
@@ -221,18 +180,11 @@ g = sns.relplot(
     xlabel = 'Año',
     ylabel = 'Inflación mensual (%)'
 )
-
 g.ax.set_xticklabels(g.ax.get_xticklabels(), rotation = 90)
 g.ax.axhline(0, color = 'black', linewidth = '1', linestyle = 'dotted')
-
 guardar(g, 'inflacion_mensual')
 
-
 # Gráfico de la inflación mensual anualizada en México y Estados Unidos:
-
-# In[13]:
-
-
 g = sns.relplot(
     x = 'Fecha',
     y = 'Inflación anualizada',
@@ -247,18 +199,11 @@ g = sns.relplot(
     xlabel = 'Año',
     ylabel = 'Inflación mensual anualizada (%)'
 )
-
 g.ax.set_xticklabels(g.ax.get_xticklabels(), rotation = 90)
 g.ax.axhline(0, color = 'black', linewidth = '1', linestyle = 'dotted')
-
 guardar(g, 'inflacion_mensual_anualizada')
 
-
 # Tabla de indicadores para 2021:
-
-# In[14]:
-
-
 ipc.query("País in ('México', 'Estados Unidos') & Fecha >= '2021-01-01'").sort_values(['País', 'Fecha'])[[
     'País',
     'Periodo',
@@ -268,12 +213,8 @@ ipc.query("País in ('México', 'Estados Unidos') & Fecha >= '2021-01-01'").sort
 ]].style.hide_index()
 
 
-# ## 4. Ocupación y empleo
-
-# Para el análisis del empleo usamos la base de datos `enoe.csv`:
-
-# In[15]:
-
+# 4. Ocupación y empleo
+# ------------------------------------------------------------------------------
 
 # Cargar base de datos:
 enoe = pd.read_csv('bases_de_datos/enoe.csv')
@@ -310,12 +251,7 @@ enoe['Tasa de desocupación (cambio)'] = enoe['Tasa de desocupación'].transform
 enoe['Población desocupada'] = enoe['Población económicamente activa'] - enoe['Población ocupada']
 enoe['Población desocupada (cambio)'] = enoe['Población desocupada'] - enoe['Población desocupada'].shift()
 
-
 # Gráfico de la tasa de desocupación trimestral:
-
-# In[16]:
-
-
 g = sns.relplot(
     x = 'Periodo',
     y = 'Tasa de desocupación',
@@ -328,18 +264,11 @@ g = sns.relplot(
     xlabel = 'Periodo',
     ylabel = 'Tasa de desocupación (%)'
 )
-
 g.ax.set_xticklabels(g.ax.get_xticklabels(), rotation = 90)
 g.ax.axvline('2020Q3', color = 'black', linewidth = '1', linestyle = 'dotted')
-
 guardar(g, 'desocupacion')
 
-
 # Gráfico del cambio porcentual en la tasa de desocupación trimestral:
-
-# In[17]:
-
-
 g = sns.catplot(
     x = 'Año',
     y = 'Tasa de desocupación (cambio)',
@@ -350,17 +279,10 @@ g = sns.catplot(
     xlabel = 'Año',
     ylabel = 'Tasa de desocupación (%)'
 )
-
 g.ax.axhline(0, color = 'black', linewidth = '1', linestyle = 'dotted')
-
 guardar(g, 'desocupacion_cambio')
 
-
 # Tabla con algunos indicadores trimestrales:
-
-# In[18]:
-
-
 pd.DataFrame(enoe.query("Año >= 2018")[[
     'Periodo',
     'Tasa de informalidad laboral',
@@ -376,12 +298,7 @@ pd.DataFrame(enoe.query("Año >= 2018")[[
     'Población desocupada (cambio)': '{:,.0f}',
 }).hide_index()
 
-
 # ¿Existe una relación entre la tasa de informalidad laboral y la tasa de desocupación? Gráficamente:
-
-# In[19]:
-
-
 g = sns.lmplot(
     x = 'Tasa de desocupación',
     y = 'Tasa de informalidad laboral',
@@ -390,22 +307,12 @@ g = sns.lmplot(
     xlabel = 'Tasa de desocupación (%)',
     ylabel = 'Tasa de informalidad laboral (%)'
 )
-
 guardar(g, 'desocupacion_informalidad')
 
-
 # Resultados del modelo lineal ajustado:
-
-# In[20]:
-
-
 print(sm.OLS(enoe['Tasa de informalidad laboral'], sm.add_constant(enoe['Tasa de desocupación'])).fit().summary())
 
-
 # ¿Existe una relación entre la tasa de informalidad laboral y la tasa de desocupación rezagada? Al ajustar modelos para 1, 2, 3 y 4 rezagos (trimestres), que corresponden a 1, 6, 9 y 12 meses, se obtienen los siguientes valores de $R^2$:
-
-# In[21]:
-
 
 # Crear una copia de la base de datos:
 enoe2 = enoe
@@ -423,30 +330,19 @@ print(2, '-', sm.OLS(enoe2['Tasa de informalidad laboral'], sm.add_constant(enoe
 print(3, '-', sm.OLS(enoe2['Tasa de informalidad laboral'], sm.add_constant(enoe2['Tasa de desocupación (lag 3)'])).fit().rsquared)
 print(4, '-', sm.OLS(enoe2['Tasa de informalidad laboral'], sm.add_constant(enoe2['Tasa de desocupación (lag 4)'])).fit().rsquared)
 
-
 # Gráficamente:
-
-# In[22]:
-
-
 fig, axes = plt.subplots(2, 2, sharex = True, sharey = True)
-
 sns.regplot(ax = axes[0, 0], x = 'Tasa de desocupación (lag 1)', y = 'Tasa de informalidad laboral', data = enoe).set(ylabel = None)
 sns.regplot(ax = axes[0, 1], x = 'Tasa de desocupación (lag 2)', y = 'Tasa de informalidad laboral', data = enoe).set(ylabel = None)
 sns.regplot(ax = axes[1, 0], x = 'Tasa de desocupación (lag 3)', y = 'Tasa de informalidad laboral', data = enoe).set(ylabel = None)
 sns.regplot(ax = axes[1, 1], x = 'Tasa de desocupación (lag 4)', y = 'Tasa de informalidad laboral', data = enoe).set(ylabel = None)
 fig.supylabel('Tasa de informalidad laboral (%)')
 fig.tight_layout()
-
 guardar(fig, 'desocupacion_informalidad_lag')
 
 
-# ## 5. Indicadores de corto plazo
-
-# Para el análisis de indicadores de corto plazo utilizamos la base de datos `indicadores_corto_plazp.csv`:
-
-# In[23]:
-
+# 5. Indicadores de corto plazo
+# ------------------------------------------------------------------------------
 
 # Cargar base de datos:
 indicadores = pd.read_csv('bases_de_datos/indicadores_corto_plazo.csv')
@@ -466,18 +362,10 @@ indicadores['Crecimiento respecto al mismo mes del año anterior'] = indicadores
 # Limpiar observaciones vacías:
 indicadores = indicadores.dropna()
 
-
-# Indicadores disponibles:
-
-# In[24]:
-
-
 # Mostrar la tabla de indicadores disponibles en la base de datos:
 pd.DataFrame({'Indicador': indicadores['Indicador'].unique()}).sort_values('Indicador').style.hide_index()
 
-
-# In[25]:
-
+# Gráficos varios:
 
 g = sns.catplot(
     x = 'Fecha',
@@ -489,16 +377,10 @@ g = sns.catplot(
     xlabel = 'Periodo',
     ylabel = 'Crecimiento respecto al mes anterior (%)'
 )
-
 xlabels = [pd.to_datetime(x.get_text()).strftime('%Y-%m') for x in g.ax.get_xticklabels()]
 g.ax.set_xticklabels(xlabels, rotation = 90)
 g.ax.axhline(0, color = 'black', linewidth = '1', linestyle = 'dotted')
-
 guardar(g, 'indicadores_igae_por_actividad')
-
-
-# In[26]:
-
 
 g = sns.catplot(
     x = 'Fecha',
@@ -510,16 +392,10 @@ g = sns.catplot(
     xlabel = 'Perodo',
     ylabel = 'Crecimiento respecto al mes anterior (%)'
 )
-
 xlabels = [pd.to_datetime(x.get_text()).strftime('%Y-%m') for x in g.ax.get_xticklabels()]
 g.ax.set_xticklabels(xlabels, rotation = 90)
 g.ax.axhline(0, color = 'black', linewidth = '1', linestyle = 'dotted')
-
 guardar(g, 'indicadores_igae_imai')
-
-
-# In[27]:
-
 
 g = sns.catplot(
     x = 'Fecha',
@@ -531,16 +407,10 @@ g = sns.catplot(
     xlabel = 'Periodo',
     ylabel = 'Crecimiento respecto al mes anterior (%)'
 )
-
 xlabels = [pd.to_datetime(x.get_text()).strftime('%Y-%m') for x in g.ax.get_xticklabels()]
 g.ax.set_xticklabels(xlabels, rotation = 90)
 g.ax.axhline(0, color = 'black', linewidth = '1', linestyle = 'dotted')
-
 guardar(g, 'indicadores_consumo_inversion')
-
-
-# In[28]:
-
 
 g = sns.catplot(
     x = 'Fecha',
@@ -552,16 +422,12 @@ g = sns.catplot(
     xlabel = 'Periodo',
     ylabel = 'Crecimiento respecto al mes anterior (%)'
 )
-
 xlabels = [pd.to_datetime(x.get_text()).strftime('%Y-%m') for x in g.ax.get_xticklabels()]
 g.ax.set_xticklabels(xlabels, rotation = 90)
 g.ax.axhline(0, color = 'black', linewidth = '1', linestyle = 'dotted')
-
 guardar(g, 'indicadores_inversion_construccion_residencial')
 
-
-# In[29]:
-
+# Tablas varias:
 
 ind = (
     'IGAE',
@@ -569,15 +435,10 @@ ind = (
     'IGAE (actividades secundarias)',
     'IGAE (actividades terciarias)',
 )
-
 indicadores.query("Indicador in " + str(ind) + " & Fecha >= '2021-01-01'").sort_values(['Periodo', 'Indicador']).style.format(formatter = {
     'Crecimiento respecto al mes anterior': '{:.2f}%',
     'Crecimiento respecto al mismo mes del año anterior': '{:.2f}%',
 }).hide_columns(['Fecha', 'Índice']).hide_index()
-
-
-# In[30]:
-
 
 ind = (
     'IMAI',
@@ -586,15 +447,10 @@ ind = (
     'IMAI (manufactura)',
     'IMAI (minería)'
 )
-
 indicadores.query("Indicador in " + str(ind) + " & Fecha >= '2021-01-01'").sort_values(['Periodo', 'Indicador']).style.format(formatter = {
     'Crecimiento respecto al mes anterior': '{:.2f}%',
     'Crecimiento respecto al mismo mes del año anterior': '{:.2f}%',
 }).hide_columns(['Fecha', 'Índice']).hide_index()
-
-
-# In[31]:
-
 
 ind = (
     'Consumo privado (total)',
@@ -603,15 +459,10 @@ ind = (
     'Consumo privado nacional (servicios)',
     'Consumo privado importaciones'
 )
-
 indicadores.query("Indicador in " + str(ind) + " & Fecha >= '2021-01-01'").sort_values(['Periodo', 'Indicador']).style.format(formatter = {
     'Crecimiento respecto al mes anterior': '{:.2f}%',
     'Crecimiento respecto al mismo mes del año anterior': '{:.2f}%',
 }).hide_columns(['Fecha', 'Índice']).hide_index()
-
-
-# In[32]:
-
 
 ind = (
     'Inversión fija bruta (total)',
@@ -620,22 +471,14 @@ ind = (
     'Inversión fija bruta (construcción no residencial)',
     'Inversión fija bruta (maquinaria y equipo)'
 )
-
 indicadores.query("Indicador in " + str(ind) + " & Fecha >= '2021-01-01'").sort_values(['Periodo', 'Indicador']).style.format(formatter = {
     'Crecimiento respecto al mes anterior': '{:.2f}%',
     'Crecimiento respecto al mismo mes del año anterior': '{:.2f}%',
 }).hide_columns(['Fecha', 'Índice']).hide_index()
 
 
-# ## 6. Mercado financiero y de crédito
-
-# Utilizaremos las bases de datos:
-# * `tasa_hipoteca_adquisicion.csv` con la tasa promedio ponderada de créditos hipotecarios vigentes (no vencidos) para adquisición de vivienda.
-# * `creditos_hipotecarios_otorgados.csv` con el número total de créditos hipotecarios otorgados por instituciones bancarias.
-# * `tiie.csv` con la tasa de interés interbanciaria de equilibrio a un día publicada por el Banco de México, tanto observada como objetivo.
-
-# In[33]:
-
+# 6. Mercado financiero y de crédito
+# ------------------------------------------------------------------------------
 
 # Cargar base de datos de tasas hipotecarias y de créditos otorgados:
 hip = pd.read_csv('bases_de_datos/tasa_hipoteca_adquisicion.csv')
@@ -680,12 +523,7 @@ tiie = tiie.query("Fecha in " + str(tuple(pd.to_datetime(x).strftime('%Y-%m-%d')
 hip = hip.append(tiie)
 cre = cre.merge(tiie).drop('Clase', axis = 'columns')
 
-
 # Gráfico de la tasa hipotecaria (mínima, máxima, promedio) y la TIIE objetivo del Banco de México:
-
-# In[34]:
-
-
 g = sns.relplot(
     x = 'Fecha',
     y = 'Tasa',
@@ -700,17 +538,10 @@ g = sns.relplot(
     xlabel = 'Fecha',
     ylabel = 'Tasa (anual, %)'
 )
-
 g.ax.set_xticklabels(g.ax.get_xticklabels(), rotation = 90)
-
 guardar(g, 'tasa_hipotecaria_tiie')
 
-
 # Gráfico del número de créditos otorgados vs. TIIE objetivo:
-
-# In[35]:
-
-
 g = sns.lmplot(
     x = 'Tasa',
     y = 'Total',
@@ -719,15 +550,9 @@ g = sns.lmplot(
     xlabel = 'TIIE objetivo (anual, %)',
     ylabel = 'Créditos hipotecarios otorgados (último mes)'
 )
-
 guardar(g, 'creditos_hipotecarios_tiie')
 
-
 # Tabla de créditos otorgados y TIIE objetivo:
-
-# In[36]:
-
-
 cre.sort_values('Fecha').style.format(formatter = {
     'Total': '{:,}',
     'Tasa': '{:.2f}%'
