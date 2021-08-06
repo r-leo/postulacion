@@ -1,0 +1,56 @@
+# coding: utf-8
+
+# En primer lugar importamos los paquetes de Python requeridos para el análisis. En este caso únicamente requerimos `pandas`:
+import pandas as pd
+
+# Importamos la tabla `concentradohogar.csv` como `ch`:
+ch = pd.read_csv('concentradohogar.csv')
+
+# Importamos la tabla `viviendas.csv` como `viviendas`:
+viviendas = pd.read_csv('viviendas.csv', low_memory = False)
+
+# Creamos una columa de ceros en `viviendas`, llamada `ingreso`, donde se almacenará el ingreso de la vivienda:
+viviendas['ingreso'] = 0.0
+
+# Creamos una columa de ceros en `vivienda`, llamada `factor`, donde se almacenará el factor de expansión del hogar principal:
+viviendas['factor'] = 0
+
+# Determinamos el ingreso de la vivienda como el ingreso corriente del hogar principal de dicha vivienda. Esto se hace cruzando la información de las tablas `viviendas` y `ch`, y filtrando esta última para que sólo considere los hogares principales (es decir, aquellos donde la variable `foliohog` es igual a 1. Esto mismo se hace para el factor de expansión:
+for index in viviendas.index:
+    folioviv = viviendas.loc[index]['folioviv']
+    query = ch.query(f"folioviv == {folioviv} & foliohog == 1")
+    viviendas.at[index, 'ingreso'] = query['ing_cor']
+    viviendas.at[index, 'factor'] = query['factor']
+
+# A continuación obtenemos el quintil de ingreso que corresponde a cada vivienda. Esto se hace fácilmente con la función `qcut` de `pandas`:
+viviendas['quintil'] = pd.qcut(viviendas['ingreso'], 5, labels = False) + 1
+
+# Creamos un diccionario llamado `clasificacion`, que mapea los posibles valores de la variable `tenencia` con una de las siguientes clases: `rentada`, `propia`, `pagando` y `otros`:
+clasificacion = {
+    1: 'rentada',
+    2: 'otros',
+    3: 'pagando',
+    4: 'propia',
+    5: 'otros',
+    6: 'otros'
+}
+
+# A continuación creamos una nueva columna llamada `tenencia_clasificacion`, que contendrá el tipo de tenencia simplificado. Inicialmente copiaremos los valores de la variable `tenencia`:
+viviendas['tenencia_clasificacion'] = viviendas['tenencia']
+
+# Finalmente, reemplazamos los valores de `tenencia_clasificacion` empleando el mapeo que creamos en el diccionario `clasificacion`:
+viviendas = viviendas.replace({'tenencia_clasificacion': clasificacion})
+
+# Agrupamos los datos de `viviendas` por quintil y por tenencia, y posteriormente calculamos la suma de los factores de expansión dentro de cada grupo. Esta tabla la guardaremos como `resumen`:
+resumen = pd.DataFrame(viviendas.groupby(['quintil', 'tenencia_clasificacion']).agg('sum')['factor'])
+
+# Cambiamos el nombre de la columna `factor` a `viviendas`, para que sea más descriptivo:
+resumen = resumen.rename(columns = {'factor': 'viviendas'})
+
+# A continuación calculamos el porcentaje de cada observación respecto al total nacional. Este porcentaje se almacenará en la variable `viviendas_porcentaje`:
+tot_viviendas = resumen['viviendas'].sum()
+resumen['viviendas_porcentaje'] = resumen['viviendas'] / tot_viviendas
+
+resumen = resumen.stack()
+resumen = resumen.unstack(level = 'quintil')
+resumen.to_excel('resumen.xlsx')
